@@ -18,22 +18,37 @@
 
 
 ## Making Changes
+Apollo actually checks in the output of the node frontend, so if you make
+changes to the source, `apollo.sh build` does *not* pick up any changes.
 
 To make changes to the visual look and debug you should first in the docker
-container run 
+container run the build for this local module. You need to install the
+development modules and then make your changes and inspect the user interface
+with a local copy on 8080. Assuming you are always starting outside the docker
+container
 
 ```
-# First you need yarn to install the local node_modules 
+docker/scripts/dev_into.sh
 yarn install
 yarn build
 yarn start
+# this is the port for this local version
+open http://localhost:8080
 ```
 
-Also note that you can run yarn from the main build script but you have to do a
+When you are ready to try to integrate this, Also note that you can run yarn from the main build script but you have to do a
 yarn install first so from the main script the equivalent commands are
 
-```
-yarn install
-cd apollo
+docker/scripts/dev_into.sh
 bash apollo.sh build-fe
+bash apollo.sh build
+bash scripts/dreamview.sh
+```
+
+Then to test it you need to in a separate window run
+
+```
+docker/scripts/dev_into.sh
+rosbag play -l docs/demo_guide/demo_1.5np.bag
+open localhost:8888
 ```
