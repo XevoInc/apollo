@@ -15,3 +15,25 @@
   
 ## Output
   A web-based dynamic 3D rendering of the monitored messages in a simulated world.
+
+
+## Making Changes
+
+To make changes to the visual look and debug you should first in the docker
+container run 
+
+```
+# First you need yarn to install the local node_modules 
+yarn install
+yarn build
+yarn start
+```
+
+Also note that you can run yarn from the main build script but you have to do a
+yarn install first so from the main script the equivalent commands are
+
+```
+yarn install
+cd apollo
+bash apollo.sh build-fe
+```
