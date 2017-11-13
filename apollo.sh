@@ -436,6 +436,7 @@ function buildify() {
 
 function build_fe() {
   cd modules/dreamview/frontend
+  yarn install
   yarn build
 }
 
