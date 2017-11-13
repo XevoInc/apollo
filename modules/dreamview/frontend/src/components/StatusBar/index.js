@@ -5,7 +5,7 @@ import Image from "components/common/Image";
 import AutoMeter from "components/StatusBar/AutoMeter";
 import Wheel from "components/StatusBar/Wheel";
 import TrafficLightIndicator from "components/StatusBar/TrafficLightIndicator";
-import logoApollo from "assets/images/logo_apollo.png";
+import logo from "assets/images/logo.png";
 
 class StatusBackground extends React.Component {
     render() {
@@ -31,8 +31,8 @@ export default class StatusBar extends React.Component {
         return (
             <div className="status-bar">
                 <StatusBackground />
-                <Image image={logoApollo}
-                       className="apollo-logo" />
+                <Image image={logo}
+                       className="logo" />
                 <AutoMeter throttlePercent={meters.throttlePercent}
                            brakePercent={meters.brakePercent}
                            speed={meters.speed}

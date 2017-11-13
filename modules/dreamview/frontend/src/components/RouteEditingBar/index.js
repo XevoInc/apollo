@@ -2,7 +2,7 @@ import React from "react";
 import { inject, observer } from "mobx-react";
 
 import Image from "components/common/Image";
-import logoApollo from "assets/images/logo_apollo.png";
+import logo from "assets/images/logo.png";
 import EditingPanel from "components/RouteEditingBar/EditingPanel";
 import EditingTip from "components/RouteEditingBar/EditingTip";
 import helpIcon from "assets/images/icons/help.png";
