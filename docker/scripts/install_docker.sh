@@ -16,6 +16,15 @@
 # limitations under the License.
 ###############################################################################
 
+function install_docker_macos {
+    if ! command -v brew
+    then
+        # from http://brew.sh
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    fi
+    brew cask install docker_edge
+}
+
 function install_docker_x86() {
   sudo apt-get -y install curl \
       "linux-image-extra-$(uname -r)" \
@@ -48,7 +57,9 @@ function install_docker_arm() {
 
 # the machine type, currently support x86_64, aarch64
 MACHINE_ARCH=$(uname -m)
-if [ "$MACHINE_ARCH" == 'x86_64' ]; then
+if [ "$OSTYPE" == 'darwin' ]; then
+  install_docker_macos
+elif [ "$MACHINE_ARCH" == 'x86_64' ]; then
   install_docker_x86
 elif [ "$MACHINE_ARCH" == 'aarch64' ]; then
   install_docker_arm

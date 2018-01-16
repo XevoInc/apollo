@@ -97,7 +97,10 @@ if [ ! -e /apollo ]; then
     sudo ln -sf ${APOLLO_ROOT_DIR} /apollo
 fi
 
-echo "/apollo/data/core/core_%e.%p" | sudo tee /proc/sys/kernel/core_pattern >/dev/null
+# This is not needed in MacOS emulation since we do not need core dumps
+if [ -e /proc/sys/kernel/core_pattern ]; then
+    echo "/apollo/data/core/core_%e.%p" | sudo tee /proc/sys/kernel/core_pattern >/dev/null
+fi
 
 source ${APOLLO_ROOT_DIR}/scripts/apollo_base.sh
 
@@ -143,6 +146,17 @@ function main(){
     fi
 
     info "Starting docker container \"apollo_dev\" ..."
+
+    media="/media"
+    linux_modules=" -v /usr/src:/usr/src -v /lib/modules:/lib/modules "
+    if [[ $OSTYPE =~ darwin ]]
+    then
+        info "Make sure Docker for Mac/Preferences/File Sharing set for /etc/localtime"
+        info "Make sure that /Volumes is available there"
+        media="/Volumes"
+        linux_modules=""
+    fi
+
     docker run -it \
         -d \
         --privileged \
@@ -156,11 +170,10 @@ function main(){
         -e DOCKER_IMG=$IMG \
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         -v $APOLLO_ROOT_DIR:/apollo \
-        -v /media:/media \
+        -v $media:/media \
         -v $HOME/.cache:${DOCKER_HOME}/.cache \
         -v /etc/localtime:/etc/localtime:ro \
-        -v /usr/src:/usr/src \
-        -v /lib/modules:/lib/modules \
+        $linux_modules \
         --net host \
         -w /apollo \
         ${devices} \

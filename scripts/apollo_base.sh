@@ -172,6 +172,11 @@ function find_device() {
 }
 
 function setup_device() {
+  # do not do real setup unless in linux  
+  if [[ ! $OSTYPE =~ linux ]]
+  then
+      return
+  fi
   # setup CAN device
   for INDEX in `seq 0 3`
   do

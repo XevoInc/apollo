@@ -70,9 +70,26 @@ full build.
 
 
 ## Run Apollo
+Follow the steps below to launch Apollo:
 
-Follow the steps below to launch Apollo. Note that you must build the system first before you run it. Note that the 
-bootstrap.sh will actually succeed but the user interface will not come up if you skip the build step.
+### Start Apollo from MacOS
+
+Install Docker for Mac using the Edge release. This is easily down with `brew
+cask install docker-edge` or you can run `install-docker.sh` and it will do this
+for you and install Brew if needed.
+
+Make sure the shares are added in Docker for Mac icon. This is a little
+complicated as not all files are visible so you have to:
+
+- Start Docker for Mac
+- Click on Preferences/File Sharing and click the `+` icon
+- Add any random directory 
+- Click on that and then manually enter `/etc/localtime`
+
+There is a current bug in Docker for Mac
+https://github.com/docker/for-mac/issues/2396 which prevents this from working
+because localtime is not handled properly
+
 
 ### Start Apollo
 
