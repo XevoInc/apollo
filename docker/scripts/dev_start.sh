@@ -148,11 +148,16 @@ function main(){
     info "Starting docker container \"apollo_dev\" ..."
 
     media="/media"
-    linux_modules=" -v /usr/src:/usr/src -v /lib/modules:/lib/modules "
+    linux_modules=" \
+        -v /usr/src:/usr/src \
+        -v /lib/modules:/lib/modules \
+        -v /etc/localtime:/etc/localtime:ro \
+        "
     if [[ $OSTYPE =~ darwin ]]
     then
         info "Make sure Docker for Mac/Preferences/File Sharing set for /etc/localtime"
         info "Make sure that /Volumes is available there"
+        info "Current bug prevents localtime from working so it is disabled"
         media="/Volumes"
         linux_modules=""
     fi
@@ -172,7 +177,6 @@ function main(){
         -v $APOLLO_ROOT_DIR:/apollo \
         -v $media:/media \
         -v $HOME/.cache:${DOCKER_HOME}/.cache \
-        -v /etc/localtime:/etc/localtime:ro \
         $linux_modules \
         --net host \
         -w /apollo \

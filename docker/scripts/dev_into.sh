@@ -16,9 +16,15 @@
 # limitations under the License.
 ###############################################################################
 
-xhost +local:root 1>/dev/null 2>&1
+if [[ $OSTYPE =~ linux ]]
+then
+    xhost +local:root 1>/dev/null 2>&1
+fi
 docker exec \
     -u $USER \
     -it apollo_dev \
     /bin/bash
-xhost -local:root 1>/dev/null 2>&1
+if [[ $OSTYPE =~ linux ]]
+then
+    xhost -local:root 1>/dev/null 2>&1
+fi
