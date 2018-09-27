@@ -22,6 +22,7 @@
 #define MODULES_PREDICTION_PREDICTION_H_
 
 #include <string>
+#include <vector>
 
 #include "modules/common/adapters/proto/adapter_config.pb.h"
 #include "modules/common/proto/pnc_point.pb.h"
@@ -82,8 +83,11 @@ class Prediction : public PredictionInterface {
 
   void OnPlanning(const planning::ADCTrajectory &adc_trajectory);
 
-  bool IsValidTrajectoryPoint(
-      const ::apollo::common::TrajectoryPoint &trajectory_point);
+  /**
+   * @brief process rosbag in offline mode, mainly for extracting prediction
+   * features.
+   */
+  void ProcessRosbag(const std::string &filename);
 
  private:
   double start_time_ = 0.0;

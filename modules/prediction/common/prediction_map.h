@@ -58,6 +58,14 @@ class PredictionMap {
                               const double s);
 
   /**
+   * @brief Get the curvature of a point on a specific distance along a lane.
+   * @param lane_iid The id of the lane to get a curvature.
+   * @param s The distance along the lane.
+   * @return The curvature of the point.
+   */
+  static double CurvatureOnLane(const std::string& lane_id, const double s);
+
+  /**
    * @brief Get the width on a specified distance on a lane.
    * @param lane_info The lane to get the width.
    * @param s The distance along the lane.
@@ -121,7 +129,8 @@ class PredictionMap {
   static void OnLane(
       const std::vector<std::shared_ptr<const hdmap::LaneInfo>>& prev_lanes,
       const Eigen::Vector2d& point, const double heading, const double radius,
-      const bool on_lane,
+      const bool on_lane, const int max_num_lane,
+      const double max_lane_angle_diff,
       std::vector<std::shared_ptr<const hdmap::LaneInfo>>* lanes);
 
   /**
@@ -132,6 +141,14 @@ class PredictionMap {
    * @return If any junctions exist.
    */
   static bool NearJunction(const Eigen::Vector2d& point, const double radius);
+
+   /**
+   * @brief Check if the obstacle is in a junction.
+   * @param point position
+   * @param radius the radius to search candidate junctions
+   * @return If the obstacle is in a junction.
+   */
+  static bool InJunction(const Eigen::Vector2d& point, const double radius);
 
   /**
    * @brief Get a list of junctions given a point and a search radius
@@ -175,7 +192,18 @@ class PredictionMap {
   static void NearbyLanesByCurrentLanes(
       const Eigen::Vector2d& point, const double heading, const double radius,
       const std::vector<std::shared_ptr<const hdmap::LaneInfo>>& lanes,
+      const int max_num_lane,
       std::vector<std::shared_ptr<const hdmap::LaneInfo>>* nearby_lanes);
+
+  static std::shared_ptr<const hdmap::LaneInfo> GetLeftNeighborLane(
+      const std::shared_ptr<const hdmap::LaneInfo>& ptr_ego_lane,
+      const Eigen::Vector2d& ego_position,
+      const double threshold);
+
+  static std::shared_ptr<const hdmap::LaneInfo> GetRightNeighborLane(
+      const std::shared_ptr<const hdmap::LaneInfo>& ptr_ego_lane,
+      const Eigen::Vector2d& ego_position,
+      const double threshold);
 
   /**
    * @brief Get nearby lanes by a position.
@@ -292,6 +320,12 @@ class PredictionMap {
   static int LaneTurnType(const std::string& lane_id);
 
  private:
+  static std::shared_ptr<const hdmap::LaneInfo> GetNeighborLane(
+      const std::shared_ptr<const hdmap::LaneInfo>& ptr_ego_lane,
+      const Eigen::Vector2d& ego_position,
+      const std::vector<std::string>& neighbor_lane_ids,
+      const double threshold);
+
   PredictionMap() = delete;
 };
 

@@ -32,6 +32,7 @@ limitations under the License.
 #include "modules/map/proto/map_junction.pb.h"
 #include "modules/map/proto/map_lane.pb.h"
 #include "modules/map/proto/map_overlap.pb.h"
+#include "modules/map/proto/map_parking_space.pb.h"
 #include "modules/map/proto/map_road.pb.h"
 #include "modules/map/proto/map_signal.pb.h"
 #include "modules/map/proto/map_speed_bump.pb.h"
@@ -81,6 +82,7 @@ class OverlapInfo;
 class ClearAreaInfo;
 class SpeedBumpInfo;
 class RoadInfo;
+class ParkingSpaceInfo;
 
 class HDMapImpl;
 
@@ -98,6 +100,7 @@ using YieldSignInfoConstPtr = std::shared_ptr<const YieldSignInfo>;
 using ClearAreaInfoConstPtr = std::shared_ptr<const ClearAreaInfo>;
 using SpeedBumpInfoConstPtr = std::shared_ptr<const SpeedBumpInfo>;
 using RoadInfoConstPtr = std::shared_ptr<const RoadInfo>;
+using ParkingSpaceInfoConstPtr = std::shared_ptr<const ParkingSpaceInfo>;
 using RoadROIBoundaryPtr = std::shared_ptr<RoadROIBoundary>;
 
 class LaneInfo {
@@ -115,6 +118,7 @@ class LaneInfo {
     return unit_directions_;
   }
   double Heading(const double s) const;
+  double Curvature(const double s) const;
   const std::vector<double> &headings() const { return headings_; }
   const std::vector<apollo::common::math::LineSegment2d> &segments() const {
     return segments_;
@@ -154,6 +158,16 @@ class LaneInfo {
   void GetWidth(const double s, double *left_width, double *right_width) const;
   double GetWidth(const double s) const;
   double GetEffectiveWidth(const double s) const;
+
+  const std::vector<SampledWidth> &sampled_left_road_width() const {
+    return sampled_left_road_width_;
+  }
+  const std::vector<SampledWidth> &sampled_right_road_width() const {
+    return sampled_right_road_width_;
+  }
+  void GetRoadWidth(const double s, double *left_width,
+                    double *right_width) const;
+  double GetRoadWidth(const double s) const;
 
   bool IsOnLane(const apollo::common::math::Vec2d &point) const;
   bool IsOnLane(const apollo::common::math::Box2d &box) const;
@@ -202,6 +216,9 @@ class LaneInfo {
   std::vector<SampledWidth> sampled_left_width_;
   std::vector<SampledWidth> sampled_right_width_;
 
+  std::vector<SampledWidth> sampled_left_road_width_;
+  std::vector<SampledWidth> sampled_right_road_width_;
+
   std::vector<LaneSegmentBox> segment_box_list_;
   std::unique_ptr<LaneSegmentKDTree> lane_segment_kdtree_;
 
@@ -217,7 +234,7 @@ class JunctionInfo {
   const Junction &junction() const { return junction_; }
   const apollo::common::math::Polygon2d &polygon() const { return polygon_; }
 
-  const std::vector<Id>& OverlapStopSignIds() const {
+  const std::vector<Id> &OverlapStopSignIds() const {
     return overlap_stop_sign_ids_;
   }
 
@@ -290,9 +307,10 @@ class StopSignInfo {
   const std::vector<apollo::common::math::LineSegment2d> &segments() const {
     return segments_;
   }
-  const std::vector<Id>& OverlapLaneIds() const { return overlap_lane_ids_; }
-  const std::vector<Id>& OverlapJunctionIds() const {
-    return overlap_junction_ids_; }
+  const std::vector<Id> &OverlapLaneIds() const { return overlap_lane_ids_; }
+  const std::vector<Id> &OverlapJunctionIds() const {
+    return overlap_junction_ids_;
+  }
 
  private:
   friend class HDMapImpl;
@@ -406,6 +424,25 @@ class RoadInfo {
   std::vector<RoadSection> sections_;
   std::vector<RoadBoundary> road_boundaries_;
 };
+
+class ParkingSpaceInfo {
+ public:
+  explicit ParkingSpaceInfo(const ParkingSpace &parkingspace);
+  const Id &id() const { return parking_space_.id(); }
+  const ParkingSpace &parking_space() const { return parking_space_; }
+  const apollo::common::math::Polygon2d &polygon() const { return polygon_; }
+
+ private:
+  void Init();
+
+ private:
+  const ParkingSpace &parking_space_;
+  apollo::common::math::Polygon2d polygon_;
+};
+using ParkingSpacePolygonBox =
+    ObjectWithAABox<ParkingSpaceInfo, apollo::common::math::Polygon2d>;
+using ParkingSpacePolygonKDTree =
+    apollo::common::math::AABoxKDTree2d<ParkingSpacePolygonBox>;
 
 struct JunctionBoundary {
   JunctionInfoConstPtr junction_info;

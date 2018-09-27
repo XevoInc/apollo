@@ -43,8 +43,8 @@ void ApolloApp::ExportFlags() const {
   std::ofstream fout(export_file);
   CHECK(fout) << "Cannot open file " << export_file;
 
-  std::vector<gflags::CommandLineFlagInfo> flags;
-  gflags::GetAllFlags(&flags);
+  std::vector<google::CommandLineFlagInfo> flags;
+  google::GetAllFlags(&flags);
   for (const auto& flag : flags) {
     fout << "# " << flag.type << ", default=" << flag.default_value << "\n"
          << "# " << flag.description << "\n"
@@ -54,16 +54,18 @@ void ApolloApp::ExportFlags() const {
 }
 
 int ApolloApp::Spin() {
-  std::unique_ptr<ros::AsyncSpinner> spinner;
-  if (callback_thread_num_ > 1) {
-    spinner = std::unique_ptr<ros::AsyncSpinner>(
-        new ros::AsyncSpinner(callback_thread_num_));
-  }
   auto status = Init();
   if (!status.ok()) {
     AERROR << Name() << " Init failed: " << status;
     return -1;
   }
+
+  std::unique_ptr<ros::AsyncSpinner> spinner;
+  if (callback_thread_num_ > 1) {
+    spinner = std::unique_ptr<ros::AsyncSpinner>(
+        new ros::AsyncSpinner(callback_thread_num_));
+  }
+
   status = Start();
   if (!status.ok()) {
     AERROR << Name() << " Start failed: " << status;

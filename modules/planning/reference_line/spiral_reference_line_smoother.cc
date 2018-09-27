@@ -39,9 +39,9 @@ namespace planning {
 using apollo::common::time::Clock;
 
 SpiralReferenceLineSmoother::SpiralReferenceLineSmoother(
-    const double max_point_deviation)
-    : default_max_point_deviation_(max_point_deviation) {
-  CHECK(max_point_deviation >= 0.0);
+    const ReferenceLineSmootherConfig& config)
+    : ReferenceLineSmoother(config) {
+  default_max_point_deviation_ = config.spiral().max_deviation();
 }
 
 bool SpiralReferenceLineSmoother::Smooth(
@@ -56,7 +56,7 @@ bool SpiralReferenceLineSmoother::Smooth(
   std::vector<double> opt_s;
 
   if (anchor_points_.empty()) {
-    const double piecewise_length = FLAGS_spiral_smoother_piecewise_length;
+    const double piecewise_length = config_.spiral().piecewise_length();
     const double length = raw_reference_line.Length();
     ADEBUG << "Length = " << length;
     uint32_t num_of_pieces =
@@ -120,10 +120,14 @@ bool SpiralReferenceLineSmoother::Smooth(
       fixed_start_point_ = true;
       fixed_start_x_ = start_anchor_point.path_point.x();
       fixed_start_y_ = start_anchor_point.path_point.y();
-      fixed_start_theta_ = common::math::NormalizeAngle(
-          start_anchor_point.path_point.theta());
+      fixed_start_theta_ =
+          common::math::NormalizeAngle(start_anchor_point.path_point.theta());
       fixed_start_kappa_ = start_anchor_point.path_point.kappa();
       fixed_start_dkappa_ = start_anchor_point.path_point.dkappa();
+
+      const auto& end_anchor_point = anchor_points_.back();
+      fixed_end_x_ = end_anchor_point.path_point.x();
+      fixed_end_y_ = end_anchor_point.path_point.y();
 
       Smooth(raw_point2d, &opt_theta, &opt_kappa, &opt_dkappa, &opt_s, &opt_x,
              &opt_y);
@@ -138,19 +142,17 @@ bool SpiralReferenceLineSmoother::Smooth(
       opt_x.insert(opt_x.begin(), overhead_x.begin(), overhead_x.end());
       opt_y.insert(opt_y.begin(), overhead_y.begin(), overhead_y.end());
 
-      std::for_each(opt_x.begin(), opt_x.end(), [this](double& x){
-        x += zero_x_;
-      });
+      std::for_each(opt_x.begin(), opt_x.end(),
+                    [this](double& x) { x += zero_x_; });
 
-      std::for_each(opt_y.begin(), opt_y.end(), [this](double& y){
-        y += zero_y_;
-      });
+      std::for_each(opt_y.begin(), opt_y.end(),
+                    [this](double& y) { y += zero_y_; });
     }
   }
 
   std::vector<common::PathPoint> smoothed_point2d =
       Interpolate(opt_theta, opt_kappa, opt_dkappa, opt_s, opt_x, opt_y,
-                  FLAGS_spiral_reference_line_resolution);
+                  config_.resolution());
 
   std::vector<ReferencePoint> ref_points;
   for (const auto& p : smoothed_point2d) {
@@ -171,7 +173,7 @@ bool SpiralReferenceLineSmoother::Smooth(
     ref_points.emplace_back(
         ReferencePoint(hdmap::MapPathPoint(common::math::Vec2d(p.x(), p.y()),
                                            heading, rlp.lane_waypoints()),
-                       kappa, dkappa, 0.0, 0.0));
+                       kappa, dkappa));
   }
 
   ReferencePoint::RemoveDuplicates(&ref_points);
@@ -184,6 +186,63 @@ bool SpiralReferenceLineSmoother::Smooth(
   ADEBUG << "Spiral reference line smoother time: "
          << (end_timestamp - start_timestamp) * 1000 << " ms.";
   return true;
+}
+
+bool SpiralReferenceLineSmoother::SmoothStandAlone(
+    std::vector<Eigen::Vector2d> point2d, std::vector<double>* ptr_theta,
+    std::vector<double>* ptr_kappa, std::vector<double>* ptr_dkappa,
+    std::vector<double>* ptr_s, std::vector<double>* ptr_x,
+    std::vector<double>* ptr_y) const {
+  CHECK_GT(point2d.size(), 1);
+
+  SpiralProblemInterface* ptop = new SpiralProblemInterface(point2d);
+
+  ptop->set_default_max_point_deviation(default_max_point_deviation_);
+  ptop->set_element_weight_curve_length(
+      config_.spiral().opt_weight_curve_length());
+  ptop->set_element_weight_kappa(config_.spiral().opt_weight_kappa());
+  ptop->set_element_weight_dkappa(config_.spiral().opt_weight_dkappa());
+  ptop->set_element_weight_d2kappa(config_.spiral().opt_weight_d2kappa());
+
+  Ipopt::SmartPtr<Ipopt::TNLP> problem = ptop;
+
+  // Create an instance of the IpoptApplication
+  Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
+
+  app->Options()->SetStringValue("hessian_approximation", "limited-memory");
+  app->Options()->SetIntegerValue("max_iter", config_.spiral().max_iteration());
+  app->Options()->SetIntegerValue("acceptable_iter",
+                                  config_.spiral().opt_acceptable_iteration());
+  app->Options()->SetNumericValue("tol", config_.spiral().opt_tol());
+  app->Options()->SetNumericValue("acceptable_tol",
+                                  config_.spiral().opt_acceptable_tol());
+
+  Ipopt::ApplicationReturnStatus status = app->Initialize();
+  if (status != Ipopt::Solve_Succeeded) {
+    ADEBUG << "*** Error during initialization!";
+    return false;
+  }
+
+  status = app->OptimizeTNLP(problem);
+
+  if (status == Ipopt::Solve_Succeeded ||
+      status == Ipopt::Solved_To_Acceptable_Level) {
+    // Retrieve some statistics about the solve
+    Ipopt::Index iter_count = app->Statistics()->IterationCount();
+    ADEBUG << "*** The problem solved in " << iter_count << " iterations!";
+
+    Ipopt::Number final_obj = app->Statistics()->FinalObjective();
+    ADEBUG << "*** The final value of the objective function is " << final_obj
+           << '.';
+  } else {
+    ADEBUG << "Return status: " << int(status);
+  }
+
+  ptop->get_optimization_results(ptr_theta, ptr_kappa, ptr_dkappa, ptr_s, ptr_x,
+                                 ptr_y);
+
+  return status == Ipopt::Solve_Succeeded ||
+         status == Ipopt::Solved_To_Acceptable_Level;
 }
 
 bool SpiralReferenceLineSmoother::Smooth(std::vector<Eigen::Vector2d> point2d,
@@ -203,26 +262,31 @@ bool SpiralReferenceLineSmoother::Smooth(std::vector<Eigen::Vector2d> point2d,
                           fixed_start_kappa_, fixed_start_dkappa_);
   }
 
+  ptop->set_end_point_position(fixed_end_x_, fixed_end_y_);
+  ptop->set_element_weight_curve_length(
+      config_.spiral().opt_weight_curve_length());
+  ptop->set_element_weight_kappa(config_.spiral().opt_weight_kappa());
+  ptop->set_element_weight_dkappa(config_.spiral().opt_weight_dkappa());
+  ptop->set_element_weight_d2kappa(config_.spiral().opt_weight_d2kappa());
+
   Ipopt::SmartPtr<Ipopt::TNLP> problem = ptop;
 
   // Create an instance of the IpoptApplication
   Ipopt::SmartPtr<Ipopt::IpoptApplication> app = IpoptApplicationFactory();
 
   app->Options()->SetStringValue("hessian_approximation", "limited-memory");
-  //  app->Options()->SetStringValue("derivative_test", "first-order");
-  //  app->Options()->SetNumericValue("derivative_test_perturbation", 1.0e-7);
-  //  app->Options()->SetStringValue("derivative_test", "second-order");
   app->Options()->SetIntegerValue("print_level", 0);
-  int num_iterations = FLAGS_spiral_smoother_num_iteration;
-  app->Options()->SetIntegerValue("max_iter", num_iterations);
-  app->Options()->SetIntegerValue("acceptable_iter", 5);
-  app->Options()->SetNumericValue("tol", 1.0e-4);
-  app->Options()->SetNumericValue("acceptable_tol", 1.0e-5);
+  app->Options()->SetIntegerValue("max_iter", config_.spiral().max_iteration());
+  app->Options()->SetIntegerValue("acceptable_iter",
+                                  config_.spiral().opt_acceptable_iteration());
+  app->Options()->SetNumericValue("tol", config_.spiral().opt_tol());
+  app->Options()->SetNumericValue("acceptable_tol",
+                                  config_.spiral().opt_acceptable_tol());
 
   Ipopt::ApplicationReturnStatus status = app->Initialize();
   if (status != Ipopt::Solve_Succeeded) {
     ADEBUG << "*** Error during initialization!";
-    return static_cast<int>(status);
+    return false;
   }
 
   status = app->OptimizeTNLP(problem);
@@ -280,7 +344,6 @@ std::vector<common::PathPoint> SpiralReferenceLineSmoother::Interpolate(
     const double theta0, const double kappa0, const double dkappa0,
     const double theta1, const double kappa1, const double dkappa1,
     const double delta_s, const double resolution) const {
-
   std::vector<common::PathPoint> path_points;
 
   const auto angle_diff = common::math::AngleDiff(theta0, theta1);
@@ -327,57 +390,13 @@ void SpiralReferenceLineSmoother::SetAnchorPoints(
   zero_y_ = anchor_points_.front().path_point.y();
 
   std::for_each(anchor_points_.begin(), anchor_points_.end(),
-      [this](AnchorPoint& p) {
-        auto curr_x = p.path_point.x();
-        auto curr_y = p.path_point.y();
-        p.path_point.set_x(curr_x - zero_x_);
-        p.path_point.set_y(curr_y - zero_y_);});
+                [this](AnchorPoint& p) {
+                  auto curr_x = p.path_point.x();
+                  auto curr_y = p.path_point.y();
+                  p.path_point.set_x(curr_x - zero_x_);
+                  p.path_point.set_y(curr_y - zero_y_);
+                });
 }
-
-int SpiralReferenceLineSmoother::DownSampleRawReferenceLine(
-    const std::vector<Eigen::Vector2d>& raw_point2d,
-    std::vector<Eigen::Vector2d>* down_sampled_raw_point2d) {
-  CHECK(down_sampled_raw_point2d != nullptr);
-  if (raw_point2d.size() == 0 || raw_point2d.size() <= 2) {
-    AERROR<< "DownSampleRawReferenceLine error";
-    return 1;
-  }
-  std::vector<double> thetas;
-  std::vector<double> kappas;
-  for (uint i = 0; i < raw_point2d.size() - 1; ++i) {
-    thetas.push_back(
-        common::math::NormalizeAngle(
-            std::atan2(raw_point2d[i + 1].y() - raw_point2d[i].y(),
-                raw_point2d[i + 1].x() - raw_point2d[i].x())));
-  }
-  for (uint i = 0; i < thetas.size() - 1; ++i) {
-    double diff_y = raw_point2d[i + 1].y() - raw_point2d[i].y();
-    double diff_x = raw_point2d[i + 1].x() - raw_point2d[i].x();
-    double ds = std::sqrt(diff_y * diff_y + diff_x * diff_x);
-    double dtheta = common::math::NormalizeAngle(thetas[i + 1] - thetas[i]);
-    if (ds <= std::numeric_limits<double>::epsilon()) {
-      AWARN<< "Distance too close for raw point [" << i << "] (" <<
-      raw_point2d[i].x() << "," << raw_point2d[i].y() << ") [" << i+1 <<
-      "] (" << raw_point2d[i+1].x() << "," << raw_point2d[i+1].y() << ")";
-      kappas.push_back(std::numeric_limits<double>::max());
-    } else {
-      kappas.push_back(dtheta/ds);
-    }
-  }
-  down_sampled_raw_point2d->push_back(
-      Eigen::Vector2d(raw_point2d[0].x(), raw_point2d[0].y()));
-  for (uint i = 0; i < kappas.size(); ++i) {
-    if (kappas[i] > FLAGS_spiral_downsample_curvature_thred) {
-      down_sampled_raw_point2d->push_back(
-          Eigen::Vector2d(raw_point2d[i + 1].x(), raw_point2d[i + 1].y()));
-    }
-  }
-  down_sampled_raw_point2d->push_back(
-      Eigen::Vector2d(raw_point2d[raw_point2d.size() - 1].x(),
-          raw_point2d[raw_point2d.size() - 1].y()));
-  return 0;
-}
-
 
 }  // namespace planning
 }  // namespace apollo

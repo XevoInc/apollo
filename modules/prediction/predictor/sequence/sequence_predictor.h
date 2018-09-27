@@ -22,14 +22,15 @@
 #ifndef MODULES_PREDICTION_PREDICTOR_SEQUENCE_SEQUENCE_PREDICTOR_H_
 #define MODULES_PREDICTION_PREDICTOR_SEQUENCE_SEQUENCE_PREDICTOR_H_
 
-#include <vector>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
+#include "gtest/gtest.h"
 #include "Eigen/Dense"
 
+#include "modules/common/macro.h"
 #include "modules/prediction/proto/lane_graph.pb.h"
-
 #include "modules/prediction/predictor/predictor.h"
 
 namespace apollo {
@@ -62,6 +63,8 @@ class SequencePredictor : public Predictor {
    */
   void Predict(Obstacle* obstacle) override;
 
+  FRIEND_TEST(SequencePredictorTest, General);
+
  protected:
   /**
    * @brief Filter lane sequences
@@ -69,8 +72,7 @@ class SequencePredictor : public Predictor {
    * @param Current lane id
    * @param Vector of boolean indicating if a lane sequence is disqualified
    */
-  void FilterLaneSequences(const LaneGraph& lane_graph,
-                           const std::string& lane_id,
+  void FilterLaneSequences(const Feature& feature, const std::string& lane_id,
                            std::vector<bool>* enable_lane_sequence);
 
   /**
@@ -111,8 +113,8 @@ class SequencePredictor : public Predictor {
    * @return Boolean if the lane sequence is enabled
    */
   bool LaneSequenceWithMaxProb(const LaneChangeType& type,
-                               const double& probability,
-                               const double& max_prob);
+                               const double probability,
+                               const double max_prob);
 
   /**
    * @brief Pick the lane change sequence with highest probability
@@ -123,7 +125,7 @@ class SequencePredictor : public Predictor {
    * @return Boolean if the lane sequence is enabled
    */
   bool LaneChangeWithMaxProb(const LaneChangeType& type,
-                             const double& probability, const double& max_prob);
+                             const double probability, const double max_prob);
 };
 
 }  // namespace prediction

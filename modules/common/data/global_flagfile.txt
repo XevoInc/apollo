@@ -7,4 +7,8 @@
 
 --vehicle_config_path=/apollo/modules/common/data/mkz_config.pb.txt
 
+--log_dir=/apollo/data/log
+
+--use_navigation_mode=false
+
 --map_dir=/apollo/modules/map/data/sunnyvale_big_loop

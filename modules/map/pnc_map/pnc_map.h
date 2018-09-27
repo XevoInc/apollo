@@ -31,13 +31,18 @@
 #include <vector>
 
 #include "gflags/gflags.h"
+#include "gtest/gtest_prod.h"
 
-#include "modules/common/proto/vehicle_state.pb.h"
+#include "modules/common/vehicle_state/proto/vehicle_state.pb.h"
 #include "modules/routing/proto/routing.pb.h"
 
 #include "modules/map/hdmap/hdmap.h"
 #include "modules/map/pnc_map/path.h"
 #include "modules/map/pnc_map/route_segments.h"
+
+DECLARE_double(look_backward_distance);
+DECLARE_double(look_forward_short_distance);
+DECLARE_double(look_forward_long_distance);
 
 namespace apollo {
 namespace hdmap {
@@ -56,9 +61,16 @@ class PncMap {
   static bool CreatePathFromLaneSegments(const RouteSegments &segments,
                                          Path *const path);
 
+  static double LookForwardDistance(const double velocity);
+
   bool GetRouteSegments(const common::VehicleState &vehicle_state,
                         const double backward_length,
                         const double forward_length,
+                        std::list<RouteSegments> *const route_segments);
+  /**
+   * @brief use heuristic forward length and backward length
+   */
+  bool GetRouteSegments(const common::VehicleState &vehicle_state,
                         std::list<RouteSegments> *const route_segments);
 
   /**
@@ -151,6 +163,8 @@ class PncMap {
   int SearchBackwardWaypointIndex(int start,
                                   const LaneWaypoint &waypoint) const;
 
+  void UpdateRoutingRange(int adc_index);
+
  private:
   routing::RoutingResponse routing_;
   struct RouteIndex {
@@ -158,8 +172,11 @@ class PncMap {
     std::array<int, 3> index;
   };
   std::vector<RouteIndex> route_indices_;
-
-  std::unordered_set<std::string> routing_lane_ids_;
+  int range_start_ = 0;
+  int range_end_ = 0;
+  // routing ids in range
+  std::unordered_set<std::string> range_lane_ids_;
+  std::unordered_set<std::string> all_lane_ids_;
 
   /**
    * The routing request waypoints
@@ -205,6 +222,14 @@ class PncMap {
    * for the last time.
    */
   bool stop_for_destination_ = false;
+
+  FRIEND_TEST(PncMapTest, UpdateRouting);
+  FRIEND_TEST(PncMapTest, GetNearestPointFromRouting);
+  FRIEND_TEST(PncMapTest, UpdateWaypointIndex);
+  FRIEND_TEST(PncMapTest, UpdateNextRoutingWaypointIndex);
+  FRIEND_TEST(PncMapTest, GetNeighborPassages);
+  FRIEND_TEST(PncMapTest, NextWaypointIndex);
+  FRIEND_TEST(PncMapTest, SearchForwardIndex_SearchBackwardIndex);
 };
 
 }  // namespace hdmap

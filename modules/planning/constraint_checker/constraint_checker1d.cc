@@ -15,27 +15,24 @@
  *****************************************************************************/
 
 /**
- * @file lattice_constraint_checker.h
+ * @file
  **/
 
 #include "modules/planning/constraint_checker/constraint_checker1d.h"
 
-#include "modules/planning/common/planning_gflags.h"
 #include "modules/common/log.h"
+#include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
 namespace planning {
 
 namespace {
 
-bool fuzzy_within(const double v, const double lower, const double upper,
-                  const double e = 1.0e-4) {
-  if (v < lower - e || v > upper + e) {
-    return false;
-  }
-  return true;
+inline bool fuzzy_within(const double v, const double lower, const double upper,
+                         const double e = 1.0e-4) {
+  return v > lower - e && v < upper + e;
 }
-}
+}  // namespace
 
 bool ConstraintChecker1d::IsValidLongitudinalTrajectory(
     const Curve1d& lon_trajectory) {

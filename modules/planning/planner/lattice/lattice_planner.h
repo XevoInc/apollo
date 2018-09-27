@@ -21,44 +21,58 @@
 #ifndef MODULES_PLANNING_PLANNER_LATTICE_LATTICE_PLANNER_H_
 #define MODULES_PLANNING_PLANNER_LATTICE_LATTICE_PLANNER_H_
 
+#include <string>
 #include <vector>
 
+#include "modules/common/status/status.h"
 #include "modules/planning/common/frame.h"
-#include "modules/planning/lattice/behavior_decider/behavior_decider.h"
 #include "modules/planning/common/reference_line_info.h"
 #include "modules/planning/planner/planner.h"
 #include "modules/planning/proto/planning_config.pb.h"
-#include "modules/planning/math/curve1d/curve1d.h"
 
 namespace apollo {
 namespace planning {
 
-class LatticePlanner : public Planner {
+class LatticePlanner : public PlannerWithReferenceLine {
  public:
-  LatticePlanner();
+  LatticePlanner() = default;
 
   virtual ~LatticePlanner() = default;
 
-  common::Status Init(const PlanningConfig& config) override;
+  std::string Name() override { return "LATTICE"; }
 
+  common::Status Init(const PlanningConfig& config) override {
+    return common::Status::OK();
+  }
+
+  /**
+   * @brief Override function Plan in parent class Planner.
+   * @param planning_init_point The trajectory point where planning starts.
+   * @param frame Current planning frame.
+   * @return OK if planning succeeds; error otherwise.
+   */
   common::Status Plan(const common::TrajectoryPoint& planning_init_point,
-                      Frame* frame,
-                      ReferenceLineInfo* reference_line_info) override;
+                      Frame* frame) override;
+
+  /**
+   * @brief Override function Plan in parent class Planner.
+   * @param planning_init_point The trajectory point where planning starts.
+   * @param frame Current planning frame.
+   * @param reference_line_info The computed reference line.
+   * @return OK if planning succeeds; error otherwise.
+   */
+  common::Status PlanOnReferenceLine(
+      const common::TrajectoryPoint& planning_init_point, Frame* frame,
+      ReferenceLineInfo* reference_line_info) override;
 
  private:
-  DiscretizedTrajectory CombineTrajectory(
-      const std::vector<common::PathPoint>& reference_line,
-      const Curve1d& lon_trajectory, const Curve1d& lat_trajectory,
-      const double init_relative_time = 0.0) const;
-
   DiscretizedTrajectory GetFutureTrajectory() const;
 
-  bool MapFutureTrajectoryToSL(const DiscretizedTrajectory& future_trajectory,
-    std::vector<apollo::common::SpeedPoint>* st_points,
-    std::vector<apollo::common::FrenetFramePoint>* sl_points,
-    ReferenceLineInfo* reference_line_info);
-
-  BehaviorDecider decider_;
+  bool MapFutureTrajectoryToSL(
+      const DiscretizedTrajectory& future_trajectory,
+      const std::vector<common::PathPoint>& discretized_reference_line,
+      std::vector<common::SpeedPoint>* st_points,
+      std::vector<common::FrenetFramePoint>* sl_points);
 };
 
 }  // namespace planning

@@ -21,8 +21,8 @@
 #ifndef MODULES_PLANNING_LATTICE_PIECEWISE_ACCELERATION_TRAJECTORY1D_H_
 #define MODULES_PLANNING_LATTICE_PIECEWISE_ACCELERATION_TRAJECTORY1D_H_
 
-#include <string>
 #include <array>
+#include <string>
 #include <vector>
 
 #include "modules/planning/math/curve1d/curve1d.h"
@@ -30,13 +30,13 @@
 namespace apollo {
 namespace planning {
 
-class ConstantAccelerationTrajectory1d : public Curve1d {
+class PiecewiseAccelerationTrajectory1d : public Curve1d {
  public:
-  ConstantAccelerationTrajectory1d(const double start_s, const double start_v);
+  PiecewiseAccelerationTrajectory1d(const double start_s, const double start_v);
 
-  virtual ~ConstantAccelerationTrajectory1d() = default;
+  virtual ~PiecewiseAccelerationTrajectory1d() = default;
 
-  void AppendSgment(const double a, const double t_duration);
+  void AppendSegment(const double a, const double t_duration);
 
   void PopSegment();
 
